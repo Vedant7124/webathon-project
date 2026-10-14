@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import ActionQueue from './components/ActionQueue'
 import BatchActionModal from './components/BatchActionModal'
 import InventoryTable from './components/InventoryTable'
+import { InventoryForm } from './components/InventoryComponents'
 import { demoInventory, DEMO_TODAY } from './data/demoInventory'
 import { estimateExposure, formatCurrency, getAttentionBatches, getBatchStatus } from './utils/inventory'
 import './App.css'
@@ -34,6 +35,7 @@ function Icon({ name, size = 19 }) {
 function App() {
   const [batches, setBatches] = useState(loadBatches)
   const [selectedBatch, setSelectedBatch] = useState(null)
+  const [addingBatch, setAddingBatch] = useState(false)
   const [toast, setToast] = useState('')
   const [activeView, setActiveView] = useState('Today')
   const [darkMode, setDarkMode] = useState(loadTheme)
@@ -56,6 +58,17 @@ function App() {
     setSelectedBatch(null)
   }
 
+  const addBatch = (newBatch) => {
+    const duplicateBatch = batches.some((batch) => batch.batchNumber.toLowerCase() === newBatch.batchNumber.toLowerCase())
+    if (duplicateBatch) {
+      setToast(`Batch number ${newBatch.batchNumber} already exists. Use a unique batch number.`)
+      return
+    }
+    setBatches((current) => [...current, newBatch])
+    setAddingBatch(false)
+    setToast(`${newBatch.name} · batch ${newBatch.batchNumber} added to stock.`)
+  }
+
   const navItems = [{ label: 'Today', icon: 'list', target: '#today' }, { label: 'Expiry & reorder', icon: 'alert', target: '#actions', count: attention.length }, { label: 'All batches', icon: 'box', target: '#inventory', count: batches.length }]
 
   return <div className={`app-shell${darkMode ? ' theme-dark' : ''}`}>
@@ -76,11 +89,12 @@ function App() {
             <section className="loss-note"><span className="loss-icon">₹</span><div><strong>Make the cost visible</strong><p>Exposure is the purchase cost of stock at risk. It’s a planning estimate, not money already lost.</p></div></section>
           </aside></div>
 
-        <InventoryTable batches={batches} today={DEMO_TODAY} onSelect={setSelectedBatch}/>
+        <InventoryTable batches={batches} today={DEMO_TODAY} onSelect={setSelectedBatch} onAdd={() => setAddingBatch(true)}/>
         <footer className="page-footer"><span>SmartStock · Batch-level stock clarity</span><button onClick={() => { try { window.localStorage.removeItem(STORAGE_KEY) } catch { /* Reset still works for this session. */ } setBatches(demoInventory); setToast('Demo inventory reset to its starting state.') }}>Reset demo data</button></footer>
       </div>
     </main>
     {selectedBatch && <BatchActionModal batch={selectedBatch} today={DEMO_TODAY} onClose={() => setSelectedBatch(null)} onUpdate={updateBatch}/>}
+    {addingBatch && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddingBatch(false) }}><section className="add-batch-dialog" role="dialog" aria-modal="true" aria-label="Add inventory batch"><button type="button" className="modal-close" onClick={() => setAddingBatch(false)} aria-label="Close">×</button><InventoryForm items={batches} onSave={addBatch} onCancel={() => setAddingBatch(false)}/></section></div>}
     {toast && <div className="toast" role="status"><span>✓</span>{toast}</div>}
   </div>
 }
