@@ -65,15 +65,19 @@ export function getInventoryAlerts(items, today = new Date()) {
   return items.map((item) => getInventoryAlert(item, today))
 }
 
-/** The display status gives expiry precedence, while getInventoryAlert keeps both signals. */
+/** Expiring stock stays visible for removal; empty stock becomes a restock action. */
 export function getBatchStatus(batch, today = new Date()) {
-  if (batch.reorderInitiated) return { label: 'Reorder started', tone: 'reorder', action: 'Replenishment is being tracked' }
-  if (batch.resolvedAt) return { label: 'Action complete', tone: 'complete', action: batch.resolutionNote || 'Reviewed' }
   const alert = getInventoryAlert(batch, today)
-  if (alert.expiryStatus === 'Unknown' || alert.stockStatus === 'Unknown') return { label: 'Needs review', tone: 'review', action: 'Check missing or invalid inventory data', kind: 'review' }
-  if (alert.expired) return { label: 'Expired', tone: 'danger', action: 'Remove from sale and review', kind: 'expiry' }
-  if (alert.critical) return { label: 'Critical', tone: 'critical', action: 'Sell first / consider discount', kind: 'expiry' }
-  if (alert.warning) return { label: 'Warning', tone: 'warning', action: 'Prioritize selling', kind: 'expiry' }
+  if (alert.expiryStatus === 'Unknown' || alert.stockStatus === 'Unknown') return { label: 'Needs review', tone: 'review', action: 'Check missing or invalid inventory data', kind: 'review', alsoNeedsRestock: alert.lowStock }
+  if (alert.expired && batch.quantity > 0) return { label: 'Expired', tone: 'danger', action: 'Remove from sale and review', kind: 'expiry', alsoNeedsRestock: !batch.reorderInitiated, alsoOrderStarted: Boolean(batch.reorderInitiated) }
+  if (alert.critical && batch.quantity > 0) return { label: 'Critical', tone: 'critical', action: 'Sell first / consider discount', kind: 'expiry', alsoNeedsRestock: alert.lowStock && !batch.reorderInitiated, alsoOrderStarted: Boolean(batch.reorderInitiated) }
+  if (alert.warning && batch.quantity > 0) return { label: 'Warning', tone: 'warning', action: 'Prioritize selling', kind: 'expiry', alsoNeedsRestock: alert.lowStock && !batch.reorderInitiated, alsoOrderStarted: Boolean(batch.reorderInitiated) }
+  if (batch.reorderInitiated) return { label: 'Reorder started', tone: 'reorder', action: 'Order marked as started' }
+  if (batch.quantity === 0) return { label: 'Low stock', tone: 'low', action: 'Reorder', kind: 'reorder' }
+  if (batch.resolvedAt) return { label: 'Action complete', tone: 'complete', action: batch.resolutionNote || 'Reviewed' }
+  if (alert.expired) return { label: 'Expired', tone: 'danger', action: 'Remove from sale and review', kind: 'expiry', alsoNeedsRestock: true }
+  if (alert.critical) return { label: 'Critical', tone: 'critical', action: 'Sell first / consider discount', kind: 'expiry', alsoNeedsRestock: alert.lowStock }
+  if (alert.warning) return { label: 'Warning', tone: 'warning', action: 'Prioritize selling', kind: 'expiry', alsoNeedsRestock: alert.lowStock }
   if (alert.lowStock) return { label: 'Low stock', tone: 'low', action: 'Reorder', kind: 'reorder' }
   return { label: 'Healthy', tone: 'healthy', action: 'No immediate action' }
 }
@@ -81,10 +85,13 @@ export function getBatchStatus(batch, today = new Date()) {
 export function getPriority(batch, today = new Date()) {
   const status = getBatchStatus(batch, today)
   const days = getDaysUntilExpiry(batch.expiryDate, today)
-  if (status.kind === 'review') return 20
+  if (status.kind === 'review') return batch.quantity === 0 && getStockStatus(batch).lowStock ? 40 : 20
   let score = 0
   if (status.kind === 'expiry' && days !== null) score += days <= 0 ? 100 : days <= 3 ? 80 - days * 8 : 55 - (days - 4) * 4
-  if (getStockStatus(batch).lowStock && !batch.reorderInitiated) score += 25 + Math.round((batch.reorderLevel - batch.quantity) / Math.max(batch.reorderLevel, 1) * 15)
+  if (getStockStatus(batch).lowStock && !batch.reorderInitiated) {
+    const stockPriority = batch.quantity === 0 ? 40 : Math.min(39, 25 + Math.round((batch.reorderLevel - batch.quantity) / Math.max(batch.reorderLevel, 1) * 15))
+    score += stockPriority
+  }
   return Math.max(0, Math.min(100, score))
 }
 

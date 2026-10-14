@@ -96,6 +96,7 @@ button:focus-visible, a[href]:focus-visible, input:focus-visible { outline: 3px 
 .action-item-foot { font-size: 11px; }
 .action-item-foot:empty { display: none; }
 .queue-action { padding: 9px 11px; font-size: 11px; }
+.status-list { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .queue-total, .table-count, .management-count { font-size: 10px; }
 .stock-line strong { font-size: 13px; }
 .stock-hint, .loss-note p, .loss-note strong { font-size: 11px; }

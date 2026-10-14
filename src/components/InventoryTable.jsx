@@ -1,5 +1,5 @@
 import { getBatchStatus } from '../utils/inventory'
-import { getFriendlyStatusLabel } from '../utils/statusLabels'
+import { getFriendlyStatusBadges } from '../utils/statusLabels'
 
 export default function InventoryTable({ batches, today, onSelect, onAdd }) {
   return <section className="panel inventory-panel" id="inventory">
@@ -7,7 +7,7 @@ export default function InventoryTable({ batches, today, onSelect, onAdd }) {
     <div className="table-wrap"><table><thead><tr><th>ITEM</th><th>IN STOCK</th><th>RESTOCK AT</th><th>USE BY</th><th>STATUS</th><th/></tr></thead><tbody>{batches.map((batch) => { const status = getBatchStatus(batch, today); return <tr key={batch.batchNumber}>
       <td><button className="table-product" onClick={() => onSelect(batch)}><span className={`product-thumb thumb-${batch.category.toLowerCase()}`}>{batch.name.slice(0, 1)}</span><span><strong>{batch.name}</strong><small>Delivery {batch.batchNumber}</small></span></button></td>
       <td><strong>{batch.quantity}</strong> <span className="table-muted">{batch.unit}</span></td><td>{batch.reorderLevel} <span className="table-muted">{batch.unit}</span></td>
-      <td>{new Date(`${batch.expiryDate}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td><td><span className={`status-pill ${status.tone}`}><i/>{getFriendlyStatusLabel(status)}</span></td>
+      <td>{new Date(`${batch.expiryDate}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td><td><span className="status-list">{getFriendlyStatusBadges(status).map((badge) => <span className={`status-pill ${badge.tone}`} key={badge.label}><i/>{badge.label}</span>)}</span></td>
       <td><button className="row-action" onClick={() => onSelect(batch)} aria-label={`View ${batch.name} details`}>→</button></td></tr> })}</tbody></table></div>
   </section>
 }
