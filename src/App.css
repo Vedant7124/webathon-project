@@ -79,3 +79,53 @@ button:focus-visible, a[href]:focus-visible, input:focus-visible { outline: 3px 
   .sync-indicator > span { display: none; }
   .topbar-actions { gap: 7px; }
 }
+
+/* Keep the existing layout, with enough type size for quick reading in-store. */
+.nav-item { font-size: 13px; }
+.sidebar-note strong { font-size: 12px; }
+.sidebar-note p, .crumb { font-size: 11px; }
+.theme-toggle, .sync-indicator { font-size: 11px; }
+.greeting-kicker, .section-kicker { font-size: 10px; }
+.greeting p { font-size: 14px; }
+.attention-lead h2, .panel-heading h2 { font-size: 17px; }
+.attention-lead p, .exposure span, .exposure small, .panel-heading p { font-size: 12px; }
+.exposure strong { font-size: 22px; }
+.action-item { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 16px 8px; }
+.action-title-row > strong, .table-product strong, .management-product strong { font-size: 13px; }
+.batch-meta, .stock-line, .management-heading p { font-size: 12px; line-height: 1.5; }
+.action-item-foot { font-size: 11px; }
+.action-item-foot:empty { display: none; }
+.queue-action { padding: 9px 11px; font-size: 11px; }
+.queue-total, .table-count, .management-count { font-size: 10px; }
+.stock-line strong { font-size: 13px; }
+.stock-hint, .loss-note p, .loss-note strong { font-size: 11px; }
+th { font-size: 10px; }
+td { font-size: 12px; }
+.table-product small, .management-product small { font-size: 10px; }
+.status-pill { font-size: 10px; }
+.row-action { font-size: 18px; }
+.management-search input { font-size: 12px; }
+.management-actions .secondary-button, .management-actions .delete-button { font-size: 11px; }
+.modal-description, .quantity-field, .confirm-box strong, .reorder-details strong, .batch-facts strong { font-size: 12px; }
+.modal-eyebrow, .batch-facts span, .reorder-details span, .quantity-field span, .confirm-box span { font-size: 11px; }
+.secondary-button, .primary-button { font-size: 12px; }
+.reorder-details small { grid-column: 1 / -1; color: #64748b; font-size: 11px; line-height: 1.5; }
+.theme-dark .reorder-details small { color: #a8b5c7; }
+.theme-dark .sync-indicator button { font-size: 10px; }
+.page-footer, .page-footer button { font-size: 10px; }
+
+@media (max-width: 1060px) {
+  .action-item { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 780px) {
+  .action-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .queue-action { white-space: normal; }
+}
+
+@media (max-width: 560px) {
+  .action-item { grid-template-columns: minmax(0, 1fr); }
+  .queue-action { grid-column: 1; justify-self: start; }
+  .greeting p { font-size: 13px; }
+  .management-heading p { font-size: 13px; }
+}

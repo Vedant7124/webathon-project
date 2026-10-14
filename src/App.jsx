@@ -42,7 +42,7 @@ function App() {
   const saveQueueRef = useRef(Promise.resolve())
   const unsyncedChangesRef = useRef(false)
   const [syncState, setSyncState] = useState('connecting')
-  const [syncMessage, setSyncMessage] = useState('Connecting to shared inventory')
+  const [syncMessage, setSyncMessage] = useState('Loading the latest stock')
   const [connectionAttempt, setConnectionAttempt] = useState(0)
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [addingBatch, setAddingBatch] = useState(false)
@@ -66,7 +66,7 @@ function App() {
     let cancelled = false
     const connect = async () => {
       setSyncState('connecting')
-      setSyncMessage('Connecting to shared inventory')
+      setSyncMessage('Loading the latest stock')
       try {
         let shared = await loadSharedInventory()
         const local = localSnapshotRef.current
@@ -79,7 +79,7 @@ function App() {
           } else if (JSON.stringify(shared.batches) !== JSON.stringify(local)) {
             if (!cancelled) {
               setSyncState('conflict')
-              setSyncMessage('Shared inventory changed while this device was offline. Reload to use the shared copy.')
+              setSyncMessage('Stock changed while this device was offline. Reload to use the latest stock.')
             }
             return
           } else {
@@ -100,11 +100,11 @@ function App() {
         setBatches(shared.batches)
         storeLocalSnapshot(shared.batches)
         setSyncState('saved')
-        setSyncMessage('Shared inventory is up to date')
-      } catch (error) {
+        setSyncMessage('Stock is up to date')
+      } catch {
         if (cancelled) return
         setSyncState('offline')
-        setSyncMessage(error.message || 'Shared inventory is unavailable. Changes are stored on this device only.')
+        setSyncMessage('Could not load shared stock. Changes will stay on this device until you reconnect.')
       }
     }
     void connect()
@@ -122,18 +122,18 @@ function App() {
       if (!versionRef.current) {
         unsyncedChangesRef.current = true
         setSyncState('offline')
-        setSyncMessage('Shared inventory is unavailable. Changes are stored on this device only.')
+        setSyncMessage('Could not load shared stock. Changes will stay on this device until you reconnect.')
         return { ok: false, offline: true }
       }
 
       setSyncState('saving')
-      setSyncMessage('Saving shared inventory')
+      setSyncMessage('Saving your changes')
       try {
         const saved = await saveSharedInventory(nextBatches, versionRef.current)
         versionRef.current = saved.version
         unsyncedChangesRef.current = false
         setSyncState('saved')
-        setSyncMessage('Shared inventory is up to date')
+        setSyncMessage('Stock is up to date')
         return { ok: true }
       } catch (error) {
         if (error.status === 409 && error.latest) {
@@ -143,12 +143,12 @@ function App() {
           storeLocalSnapshot(error.latest.batches)
           setSelectedBatch((selected) => selected ? error.latest.batches.find((item) => item.batchNumber === selected.batchNumber) ?? null : null)
           setSyncState('conflict')
-          setSyncMessage('Shared inventory changed in another session. The latest copy has been loaded.')
+          setSyncMessage('Someone else changed the stock. The latest copy is loaded.')
           return { ok: false, conflict: true }
         }
         unsyncedChangesRef.current = true
         setSyncState('offline')
-        setSyncMessage('Could not sync. Changes are stored on this device only; retry when connected.')
+        setSyncMessage('Could not save to shared stock. Your changes are on this device; try again when connected.')
         return { ok: false, offline: true }
       }
     })
@@ -158,18 +158,18 @@ function App() {
 
   const finishMutation = (result, successMessage) => {
     if (result.conflict) {
-      setToast('Another session updated the inventory first. The latest shared copy was loaded; review and retry your action.')
+      setToast('Someone else changed the stock first. The latest copy is loaded; check it and try again.')
       return false
     }
-    setToast(result.offline ? `${successMessage} Saved on this device only; retry sync when connected.` : successMessage)
+    setToast(result.offline ? `${successMessage} Saved here only. Try again when connected to share it.` : successMessage)
     return true
   }
 
   const retryConnection = async () => {
     if (syncState === 'conflict') {
-      if (unsyncedChangesRef.current && !window.confirm('Discard this device’s unsynced changes and load the latest shared inventory?')) return
+      if (unsyncedChangesRef.current && !window.confirm('Remove the changes saved on this device and load the latest shared stock?')) return
       setSyncState('connecting')
-      setSyncMessage('Loading the latest shared inventory')
+      setSyncMessage('Loading the latest stock')
       try {
         const shared = await loadSharedInventory()
         versionRef.current = shared.version
@@ -177,11 +177,11 @@ function App() {
         setBatches(shared.batches)
         storeLocalSnapshot(shared.batches)
         setSyncState('saved')
-        setSyncMessage('Shared inventory is up to date')
-        setToast('Latest shared inventory loaded.')
-      } catch (error) {
+        setSyncMessage('Stock is up to date')
+        setToast('Latest stock loaded.')
+      } catch {
         setSyncState('offline')
-        setSyncMessage(error.message || 'Could not load the shared inventory.')
+        setSyncMessage('Could not load shared stock. Try again when connected.')
       }
       return
     }
@@ -193,18 +193,18 @@ function App() {
     if (!batch) return
     const next = batches.map((item) => item.batchNumber === batchNumber ? { ...item, ...updates } : item)
     const result = await persistBatches(next)
-    const message = updates.reorderInitiated ? `Reorder initiated for ${batch.name}.` : updates.quantity === 0 && updates.resolutionNote === 'Removed from sale' ? `${batch.name} removed from sale.` : `${batch.name} stock updated. The action is recorded.`
+    const message = updates.reorderInitiated ? `Order marked as started for ${batch.name}.` : updates.quantity === 0 && updates.resolutionNote === 'Removed from sale' ? `${batch.name} removed from sale.` : `${batch.name} stock updated.`
     if (finishMutation(result, message)) setSelectedBatch(null)
   }
 
   const addBatch = async (newBatch) => {
     const duplicateBatch = batches.some((batch) => batch.batchNumber.toLowerCase() === newBatch.batchNumber.toLowerCase())
     if (duplicateBatch) {
-      setToast(`Batch number ${newBatch.batchNumber} already exists. Use a unique batch number.`)
+      setToast(`Delivery number ${newBatch.batchNumber} is already in stock. Enter a different number.`)
       return
     }
     const result = await persistBatches([...batches, newBatch])
-    if (finishMutation(result, `${newBatch.name} · batch ${newBatch.batchNumber} added to stock.`)) setAddingBatch(false)
+    if (finishMutation(result, `${newBatch.name} added to stock.`)) setAddingBatch(false)
   }
 
   const editBatch = async (updatedBatch) => {
@@ -217,52 +217,52 @@ function App() {
     }
     const duplicateBatch = batches.some((batch) => batch.batchNumber.toLowerCase() === updatedBatch.batchNumber.toLowerCase() && batch.batchNumber.toLowerCase() !== originalBatch.batchNumber.toLowerCase())
     if (duplicateBatch) {
-      setToast(`Batch number ${updatedBatch.batchNumber} already exists. Use a unique batch number.`)
+      setToast(`Delivery number ${updatedBatch.batchNumber} is already in stock. Enter a different number.`)
       return
     }
     const next = batches.map((batch) => batch.batchNumber === originalBatch.batchNumber ? updatedBatch : batch)
     const result = await persistBatches(next)
-    if (finishMutation(result, `${updatedBatch.name} · batch ${updatedBatch.batchNumber} updated.`)) setEditingBatch(null)
+    if (finishMutation(result, `${updatedBatch.name} details updated.`)) setEditingBatch(null)
   }
 
   const deleteBatch = async (batch) => {
-    if (!window.confirm(`Delete ${batch.name} · batch ${batch.batchNumber} from inventory? This cannot be undone.`)) return
+    if (!window.confirm(`Remove ${batch.name} (delivery ${batch.batchNumber}) from stock? This cannot be undone.`)) return
     const result = await persistBatches(batches.filter((item) => item.batchNumber !== batch.batchNumber))
-    finishMutation(result, `${batch.name} · batch ${batch.batchNumber} deleted.`)
+    finishMutation(result, `${batch.name} removed from stock.`)
   }
 
   const resetDemoData = async () => {
-    if (!window.confirm('Reset the shared inventory for this site to its original demo data? This replaces all current batches.')) return
+    if (!window.confirm('Replace all stock with the original sample list? This removes any changes you have made.')) return
     const result = await persistBatches(demoInventory)
-    finishMutation(result, 'Shared demo inventory reset to its starting state.')
+    finishMutation(result, 'Sample stock restored.')
   }
 
-  const navItems = [{ label: 'Today', icon: 'list', target: '#today' }, { label: 'Expiry & reorder', icon: 'alert', target: '#actions', count: attention.length }, { label: 'All batches', icon: 'box', target: '#inventory', count: batches.length }]
+  const navItems = [{ label: 'Today', icon: 'list', target: '#today' }, { label: 'Needs attention', icon: 'alert', target: '#actions', count: attention.length }, { label: 'All stock', icon: 'box', target: '#inventory', count: batches.length }]
 
   return <div className={`app-shell${darkMode ? ' theme-dark' : ''}`}>
     <aside className="sidebar"><a href="#today" className="brand" onClick={() => setActiveView('Today')}><span className="brand-mark"><Icon name="box" size={19}/></span><span>SmartStock<span className="brand-dot">.</span></span></a>
       <div className="nav-caption">YOUR STORE</div><nav className="main-nav" aria-label="Inventory views">{navItems.map((item) => <a key={item.label} href={item.target} className={`nav-item ${activeView === item.label ? 'active' : ''}`} onClick={() => setActiveView(item.label)}><Icon name={item.icon}/><span>{item.label}</span>{item.count > 0 && <small>{item.count}</small>}</a>)}</nav>
-      <div className="sidebar-note"><div className="sidebar-note-icon"><Icon name="clock" size={17}/></div><strong>Built for the daily shop run</strong><p>Spot what needs action. Keep every batch accounted for.</p></div>
-      <a href="#manage" className={`nav-item sidebar-manage-link ${activeView === 'Manage inventory' ? 'active' : ''}`} onClick={() => setActiveView('Manage inventory')}><Icon name="manage"/><span>Manage inventory</span></a>
+      <div className="sidebar-note"><div className="sidebar-note-icon"><Icon name="clock" size={17}/></div><strong>Made for a quick stock check</strong><p>See what to sell first and what to restock.</p></div>
+      <a href="#manage" className={`nav-item sidebar-manage-link ${activeView === 'Manage inventory' ? 'active' : ''}`} onClick={() => setActiveView('Manage inventory')}><Icon name="manage"/><span>Manage stock</span></a>
       <div className="sidebar-user"><span className="user-avatar">VS</span><span><strong>Vedant Sethi</strong><small>Store manager</small></span></div>
     </aside>
-    <main className="main-area"><header className="topbar"><span className="crumb">Green Basket <b>/</b> <strong>{activeView === 'Manage inventory' ? 'Manage inventory' : 'Daily brief'}</strong></span><div className="topbar-actions"><button className="mobile-view-toggle" type="button" onClick={() => setActiveView((current) => current === 'Manage inventory' ? 'Today' : 'Manage inventory')}>{activeView === 'Manage inventory' ? 'Daily brief' : 'Manage'}</button><span className={`sync-indicator ${syncState}`} role="status" aria-label={syncMessage} title={syncMessage}><i/><span>{syncState === 'connecting' ? 'Connecting' : syncState === 'saving' ? 'Saving' : syncState === 'saved' ? 'Shared · synced' : syncState === 'conflict' ? 'Review shared update' : 'Offline · device only'}</span>{['offline', 'conflict'].includes(syncState) && <button type="button" onClick={retryConnection}>{syncState === 'conflict' ? 'Reload' : 'Retry'}</button>}</span><button className="theme-toggle" type="button" onClick={() => setDarkMode((current) => !current)} aria-label={`Switch to ${darkMode ? 'light' : 'dark'} mode`} aria-pressed={darkMode}><Icon name={darkMode ? 'sun' : 'moon'} size={16}/><span>{darkMode ? 'Light mode' : 'Dark mode'}</span></button><span className="demo-date">DEMO DATE <strong>14 Oct 2026</strong></span></div></header>
-      {activeView === 'Manage inventory' ? <InventoryManagement batches={batches} today={DEMO_TODAY} onAdd={() => setAddingBatch(true)} onEdit={setEditingBatch} onDelete={deleteBatch}/> : <div className="page-content" id="today"><section className="greeting"><div><div className="greeting-kicker"><span className="live-dot"/> YOUR DAILY STOCK BRIEF</div><h1>Good morning, Vedant.</h1><p>Here’s what to handle first to protect today’s stock.</p></div><div className="brief-date">Wednesday <strong>14</strong><span>OCT</span></div></section>
+    <main className="main-area"><header className="topbar"><span className="crumb">Green Basket <b>/</b> <strong>{activeView === 'Manage inventory' ? 'Manage stock' : 'Today'}</strong></span><div className="topbar-actions"><button className="mobile-view-toggle" type="button" onClick={() => setActiveView((current) => current === 'Manage inventory' ? 'Today' : 'Manage inventory')}>{activeView === 'Manage inventory' ? 'Today' : 'Manage stock'}</button><span className={`sync-indicator ${syncState}`} role="status" aria-label={syncMessage} title={syncMessage}><i/><span>{syncState === 'connecting' ? 'Loading stock' : syncState === 'saving' ? 'Saving' : syncState === 'saved' ? 'Up to date' : syncState === 'conflict' ? 'Stock changed' : 'Offline'}</span>{['offline', 'conflict'].includes(syncState) && <button type="button" onClick={retryConnection}>{syncState === 'conflict' ? 'Reload stock' : 'Try again'}</button>}</span><button className="theme-toggle" type="button" onClick={() => setDarkMode((current) => !current)} aria-label={`Switch to ${darkMode ? 'light' : 'dark'} mode`} aria-pressed={darkMode}><Icon name={darkMode ? 'sun' : 'moon'} size={16}/><span>{darkMode ? 'Light mode' : 'Dark mode'}</span></button><span className="demo-date">TODAY <strong>14 Oct 2026</strong></span></div></header>
+      {activeView === 'Manage inventory' ? <InventoryManagement batches={batches} today={DEMO_TODAY} onAdd={() => setAddingBatch(true)} onEdit={setEditingBatch} onDelete={deleteBatch}/> : <div className="page-content" id="today"><section className="greeting"><div><div className="greeting-kicker"><span className="live-dot"/> TODAY’S STOCK</div><h1>Hello, Vedant.</h1><p>See what to sell first, then what needs restocking.</p></div><div className="brief-date">Wednesday <strong>14</strong><span>OCT</span></div></section>
 
-        <section className="attention-banner" aria-label="Today's priority summary"><div className="attention-lead"><span className="attention-icon"><Icon name="alert" size={20}/></span><div><span className="section-kicker">TODAY’S ATTENTION</span><h2>{attention.length ? `${attention.length} actions to keep stock moving` : 'Your shelves are in good shape'}</h2><p>{critical} critical <b>·</b> {warnings} expiring soon <b>·</b> {lowStock} reorder</p></div></div><div className="exposure"><span>Estimated cost exposure</span><strong>{formatCurrency(exposure)}</strong><small>Current at-risk batches × cost price</small></div></section>
+        <section className="attention-banner" aria-label="Today’s stock summary"><div className="attention-lead"><span className="attention-icon"><Icon name="alert" size={20}/></span><div><span className="section-kicker">CHECK THESE ITEMS</span><h2>{attention.length ? `${attention.length} items need attention` : 'Your shelves are in good shape'}</h2><p>{critical} urgent <b>·</b> {warnings} due in 4–7 days <b>·</b> {lowStock} to restock</p></div></div><div className="exposure"><span>Buy cost of stock at risk</span><strong>{formatCurrency(exposure)}</strong><small>Estimate based on quantity × buy price</small></div></section>
 
-        <div className="work-grid"><section className="panel queue-panel" id="actions"><div className="panel-heading queue-heading"><div><div className="section-kicker">YOUR NEXT BEST ACTIONS</div><h2>Handle these first</h2><p>Ranked by expiry urgency and stock pressure.</p></div><span className="queue-total">{attention.length} OPEN</span></div><ActionQueue batches={attention} today={DEMO_TODAY} onSelect={setSelectedBatch}/><div className="queue-legend"><span><i className="score-dot"/> Priority score</span><span>Expiry urgency + reorder pressure</span></div></section>
+        <div className="work-grid"><section className="panel queue-panel" id="actions"><div className="panel-heading queue-heading"><div><div className="section-kicker">START HERE</div><h2>What to handle first</h2><p>Items with the greatest need appear first, based on expiry date and stock level.</p></div><span className="queue-total">{attention.length} TO DO</span></div><ActionQueue batches={attention} today={DEMO_TODAY} onSelect={setSelectedBatch}/></section>
 
-          <aside className="side-column"><section className="panel shelf-panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">SHELF CHECK</div><h2>Stock at a glance</h2></div><Icon name="box" size={18}/></div><div className="stock-lines"><div className="stock-line urgent"><span><i/>Critical / expired</span><strong>{critical}</strong></div><div className="stock-line soon"><span><i/>Expiring in 4–7 days</span><strong>{warnings}</strong></div><div className="stock-line reorder"><span><i/>Below reorder level</span><strong>{lowStock}</strong></div><div className="stock-line healthy"><span><i/>Healthy batches</span><strong>{healthy}</strong></div></div><p className="stock-hint">Expiry takes priority over reorder status for the same batch.</p></section>
-            <section className="loss-note"><span className="loss-icon">₹</span><div><strong>Make the cost visible</strong><p>Exposure is the purchase cost of stock at risk. It’s a planning estimate, not money already lost.</p></div></section>
+          <aside className="side-column"><section className="panel shelf-panel"><div className="panel-heading compact-heading"><div><div className="section-kicker">QUICK STOCK CHECK</div><h2>At a glance</h2></div><Icon name="box" size={18}/></div><div className="stock-lines"><div className="stock-line urgent"><span><i/>Expired or due in 3 days</span><strong>{critical}</strong></div><div className="stock-line soon"><span><i/>Due in 4–7 days</span><strong>{warnings}</strong></div><div className="stock-line reorder"><span><i/>Restock now</span><strong>{lowStock}</strong></div><div className="stock-line healthy"><span><i/>In good shape</span><strong>{healthy}</strong></div></div><p className="stock-hint">Items close to expiry appear before low-stock reminders.</p></section>
+            <section className="loss-note"><span className="loss-icon">₹</span><div><strong>About the cost estimate</strong><p>Uses quantity and buy price. It’s an estimate, not a confirmed loss.</p></div></section>
           </aside></div>
 
         <InventoryTable batches={batches} today={DEMO_TODAY} onSelect={setSelectedBatch} onAdd={() => setAddingBatch(true)}/>
-        <footer className="page-footer"><span>SmartStock · Batch-level stock clarity</span><button type="button" onClick={resetDemoData}>Reset demo data</button></footer>
+        <footer className="page-footer"><span>SmartStock · A clearer view of your stock</span><button type="button" onClick={resetDemoData}>Restore sample stock</button></footer>
       </div>}
     </main>
-    {selectedBatch && <BatchActionModal batch={selectedBatch} today={DEMO_TODAY} onClose={() => setSelectedBatch(null)} onUpdate={updateBatch}/>}
-    {(addingBatch || editingBatch) && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setAddingBatch(false); setEditingBatch(null) } }}><section className="add-batch-dialog" role="dialog" aria-modal="true" aria-label={editingBatch ? `Edit ${editingBatch.name}` : 'Add inventory batch'}><button type="button" className="modal-close" onClick={() => { setAddingBatch(false); setEditingBatch(null) }} aria-label="Close">×</button><InventoryForm key={editingBatch?.batchNumber ?? 'new-batch'} initialItem={editingBatch ?? undefined} items={batches} onSave={editingBatch ? editBatch : addBatch} onCancel={() => { setAddingBatch(false); setEditingBatch(null) }}/></section></div>}
+    {selectedBatch && <BatchActionModal batch={selectedBatch} today={DEMO_TODAY} onClose={() => setSelectedBatch(null)} onEdit={() => { setEditingBatch(selectedBatch); setSelectedBatch(null) }} onUpdate={updateBatch}/>}
+    {(addingBatch || editingBatch) && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setAddingBatch(false); setEditingBatch(null) } }}><section className="add-batch-dialog" role="dialog" aria-modal="true" aria-label={editingBatch ? `Change ${editingBatch.name} stock details` : 'Add stock'}><button type="button" className="modal-close" onClick={() => { setAddingBatch(false); setEditingBatch(null) }} aria-label="Close">×</button><InventoryForm key={editingBatch?.batchNumber ?? 'new-batch'} initialItem={editingBatch ?? undefined} items={batches} onSave={editingBatch ? editBatch : addBatch} onCancel={() => { setAddingBatch(false); setEditingBatch(null) }}/></section></div>}
     {toast && <div className="toast" role="status"><span>✓</span>{toast}</div>}
   </div>
 }

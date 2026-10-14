@@ -139,11 +139,11 @@ function InventoryFormFields({ initialItem, items = [], onSave, onSubmit, onCanc
     const numericFields = ['quantity', 'reorderLevel', 'costPrice', 'sellingPrice']
     const values = Object.fromEntries(numericFields.map((key) => [key, Number(form[key])]))
     if (numericFields.some((key) => form[key] === '' || !Number.isFinite(values[key]) || values[key] < 0)) {
-      setError('Enter valid, non-negative quantities, reorder levels, and prices.')
+      setError('Enter zero or a higher number for stock, restock amount, and prices.')
       return
     }
     if (!form.name.trim() || !form.category.trim() || !form.batchNumber.trim() || !form.unit.trim()) {
-      setError('Complete all required fields before saving.')
+      setError('Fill in the required item and delivery details before saving.')
       return
     }
     if (getDaysUntilExpiry(form.expiryDate) === null) {
@@ -160,26 +160,27 @@ function InventoryFormFields({ initialItem, items = [], onSave, onSubmit, onCanc
   }
 
   const fields = [
-    ['name', 'Product name', 'text'], ['category', 'Category', 'text'],
-    ['batchNumber', 'Batch number', 'text'], ['quantity', 'Quantity', 'number'],
-    ['unit', 'Unit', 'text'], ['reorderLevel', 'Reorder level', 'number'],
-    ['expiryDate', 'Expiry date', 'date'], ['costPrice', 'Cost price', 'number'],
-    ['sellingPrice', 'Selling price', 'number'],
+    ['name', 'Item name', 'text'], ['category', 'Type of item', 'text'],
+    ['batchNumber', 'Delivery number', 'text'], ['quantity', 'In stock', 'number'],
+    ['unit', 'Unit (for example, packets)', 'text'], ['reorderLevel', 'Restock when at', 'number'],
+    ['expiryDate', 'Use by date', 'date'], ['costPrice', 'Buy price per unit', 'number'],
+    ['sellingPrice', 'Sell price per unit', 'number'],
   ]
 
   return (
     <form className="inventory-card inventory-form" onSubmit={handleSubmit} noValidate>
-      <div className="inventory-section-heading"><div><h3>{initialItem ? 'Edit inventory batch' : 'Add inventory batch'}</h3><p>Each entry represents one product batch.</p></div></div>
+      <div className="inventory-section-heading"><div><h3>{initialItem ? 'Change stock details' : 'Add stock'}</h3><p>Each entry is one delivery, so its date and amount are tracked separately.</p></div></div>
       <div className="inventory-form-grid">
         {fields.map(([name, label, type]) => <label className="inventory-field" key={name}>
           <span>{label}</span>
-          <input name={name} type={type} value={form[name] ?? ''} onChange={updateField} min={type === 'number' ? '0' : undefined} step={type === 'number' ? 'any' : undefined} required />
+          <input name={name} type={type} value={form[name] ?? ''} onChange={updateField} min={type === 'number' ? '0' : undefined} step={type === 'number' ? 'any' : undefined} placeholder={name === 'batchNumber' ? 'Printed on the package' : name === 'unit' ? 'packets, bottles, kg…' : undefined} required />
+          {name === 'batchNumber' && <small className="field-hint">Use the delivery or batch number printed on the package.</small>}
         </label>)}
       </div>
       {error && <p className="inventory-form-error" role="alert">{error}</p>}
       <div className="inventory-form-actions">
         {onCancel && <button type="button" className="inventory-button inventory-button-secondary" onClick={onCancel}>Cancel</button>}
-        <button type="submit" className="inventory-button inventory-button-primary">{initialItem ? 'Save changes' : 'Add batch'}</button>
+        <button type="submit" className="inventory-button inventory-button-primary">{initialItem ? 'Save changes' : 'Add to stock'}</button>
       </div>
     </form>
   )
