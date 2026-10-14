@@ -1,16 +1,22 @@
-# React + Vite
+# SmartStock
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SmartStock is a batch-level inventory and expiry alert app built with React and Vite. Inventory is shared through a Netlify Function and Netlify Blobs; the first request seeds the store with the sample data in `src/data/demoInventory.js`. Inventory changes are validated on the server and use version checks to detect edits made in another session. The browser keeps a local copy for startup and temporary network outages.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```sh
+npm install
+npm run dev
+```
 
-## React Compiler
+The Netlify Vite plugin provides local Functions and Blobs emulation inside Vite. Use `npm run dev` to exercise the inventory API. `npm run preview` serves only the built static site and does not emulate the backend.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Deploy on Netlify
 
-## Expanding the ESLint configuration
+1. Push this project to a Git provider and choose **Add new site → Import an existing project** in Netlify.
+2. Select the repository and set its base directory to the folder containing this `package.json` if the app is nested in the repository.
+3. Use the build command `npm run build` and publish directory `dist`. `netlify.toml` also configures these values and the `netlify/functions` directory.
+4. Deploy the site. Netlify Functions and Blobs are available to the function at runtime without a separate database URL or API key.
+5. Open the deployed site and confirm the header says **Shared · synced**. Add or edit a batch, then open the site in another browser to confirm the change is shared.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The inventory is shared by every visitor to this demo site. There is no sign-in or access control, so anyone who can reach the public site can change its inventory. Add authentication and authorization before using this deployment for private or real store data.
